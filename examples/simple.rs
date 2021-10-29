@@ -12,7 +12,7 @@ async fn main() {
     let falcon_client_secret = env::var("FALCON_CLIENT_SECRET")
         .expect("Missing FALCON_CLIENT_SECRET environment variable. Please provide your OAuth2 API Client Secret for authentication with CrowdStrike Falcon platform. Establishing and retrieving OAuth2 API credentials can be performed at https://falcon.crowdstrike.com/support/api-clients-and-keys.");
 
-    let configuration = new_client(&falcon_client_id, &falcon_client_secret)
+    let configuration = new_client(FalconCloud::Us1, &falcon_client_id, &falcon_client_secret)
         .await
         .expect("Could not authenticate with CrowdStrike API");
 
@@ -32,8 +32,32 @@ async fn main() {
     println!("As of {} your CrowdScore is {}.", score.timestamp, score.score)
 }
 
-async fn new_client(falcon_client_id: &str, falcon_client_secret: &str) -> Result<Configuration, Error<Oauth2AccessTokenError>> {
+enum FalconCloud {
+    Us1,
+    Us2,
+    Eu1,
+    UsGov1,
+}
+
+impl FalconCloud {
+    fn host(self) -> &'static str {
+        match self {
+            FalconCloud::Us1 => "api.crowdstrike.com",
+            FalconCloud::Us2 => "api.us-2.crowdstrike.com",
+            FalconCloud::Eu1 => "api.eu-1.crowdstrike.com",
+            FalconCloud::UsGov1 => "api.laggar.gcw.crowdstrike.com"
+        }
+    }
+    fn base_path(self) -> String {
+        let mut path = String::from("https://");
+        path.push_str(self.host());
+        return path;
+    }
+}
+
+async fn new_client(cloud: FalconCloud, falcon_client_id: &str, falcon_client_secret: &str) -> Result<Configuration, Error<Oauth2AccessTokenError>> {
     let mut configuration = Configuration {
+        base_path: cloud.base_path(),
         ..Default::default()
     };
 
